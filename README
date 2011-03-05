@@ -1,0 +1,53 @@
+Small OpenSSL demonstrator
+--------------------------
+
+Written by Ohad Lutzky <ohad@lutzky.net>, Sat, 05 Mar 2011 21:49:54 +0200
+
+Contents:
+---------
+  * server.c    
+     - A simplistic TCP server, listening on TCP port 5000, and sending
+       whatever it receives from one client to everone else.
+  * server_ssl.c
+     - Same thing, using SSL on TCP port 6000.
+
+Compilation:
+------------
+  sudo apt-get install libssl-dev
+  make
+
+Testing:
+--------
+Open a few terminals, and run ./server in one of them. In the others, run
+
+  nc localhost 5000
+
+All messages should be forwarded to all other clients.  Any message beginning
+with 'q' will shut down the server. Alternatively, hit Ctrl+C.
+
+For the SSL version, run ./ssl_server, and connect to it like so:
+
+  openssl s_client -connect localhost:6000
+
+Make note of the difference between exiting the client with Ctrl+C and with
+Ctrl+D. Also, check what happens when you use nc to connect (basically sending
+garbage as the SSL handshake).
+
+Design notes:
+-------------
+This is designed to demonstrate usage of SSL/TLS in a critically non-blocking
+environment, e.g. with a loop around select(). For example, SSL_accept will
+not block in this implementation, though with a more naive usage it would:
+After accept(), SSL_accept() should be called to perform the SSL negotiation.
+However, select() isn't aware of that, so when it says that the appropriate
+file descriptor is ready for reading, it might not even have enough data for
+the SSL handshake. This means that any shmuck trying to connect to our server
+without SSL causes us to stall. In this implementation, that doesn't happen.
+
+Also, server_ssl.c is designed to be as similar as possible to server.c, so
+reading the diff between them can be very informative.
+
+cert.pem can be generated using the openssl utility (apt-get install openssl).
+Client authentication is currently not implemented, but it should be possible
+to create a local certificate authority which issues certificates for clients,
+which it can later check.
